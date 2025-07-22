@@ -1,50 +1,11 @@
-<script type="text/javascript">
-        var gk_isXlsx = false;
-        var gk_xlsxFileLookup = {};
-        var gk_fileData = {};
-        function filledCell(cell) {
-          return cell !== '' && cell != null;
-        }
-        function loadFileData(filename) {
-        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-            try {
-                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-                var firstSheetName = workbook.SheetNames[0];
-                var worksheet = workbook.Sheets[firstSheetName];
 
-                // Convert sheet to JSON to filter blank rows
-                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-                // Filter out blank rows (rows where all cells are empty, null, or undefined)
-                var filteredData = jsonData.filter(row => row.some(filledCell));
 
-                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
-                var headerRowIndex = filteredData.findIndex((row, index) =>
-                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-                );
-                // Fallback
-                if (headerRowIndex === -1 || headerRowIndex > 25) {
-                  headerRowIndex = 0;
-                }
 
-                // Convert filtered JSON back to CSV
-                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
-                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-                return csv;
-            } catch (e) {
-                console.error(e);
-                return "";
-            }
-        }
-        return gk_fileData[filename] || "";
-        }
-        </script><!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Spinners Domino Game</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
-  <style>
+  
+  
+  Spinners Domino Game
+  
+  
     body {
       display: flex;
       flex-direction: column;
@@ -73,255 +34,275 @@
       margin: 5px;
       padding: 5px;
     }
-  </style>
-</head>
-<body>
-  <div id="playerSetup">
-    <label for="numPlayers">Number of Players (2-8): </label>
-    <input type="number" id="numPlayers" min="2" max="8" value="2">
-    <div id="nameInputs"></div>
-    <button onclick="connectAndStart()">Join Game</button>
-  </div>
-  <div id="controls" style="display: none;">
-    <button onclick="sendDraw()">Draw</button>
-  </div>
-  <div id="status">Enter player names and join game</div>
-  <script>
+  
+
+
+  
+    Number of Players (2-8): 
+    
+    
+    Join Game
+  
+  
+    Draw
+  
+  Enter player names and join game
+  
     let ws;
     let playerId = null;
     let gameState = null;
     let selectedDomino = null;
 
-    // Color mapping for numbers 0-9 and spinner
-    const colors = [
-      '#FFFFFF', '#FF6666', '#66FF66', '#6666FF', '#FFFF66',
-      '#FF66FF', '#66FFFF', '#FF9933', '#9933FF', '#33CC33', '#FFD700'
-    ];
+<pre><code>// Color mapping for numbers 0-9 and spinner
+const colors = [
+  &#39;#FFFFFF&#39;, &#39;#FF6666&#39;, &#39;#66FF66&#39;, &#39;#6666FF&#39;, &#39;#FFFF66&#39;,
+  &#39;#FF66FF&#39;, &#39;#66FFFF&#39;, &#39;#FF9933&#39;, &#39;#9933FF&#39;, &#39;#33CC33&#39;, &#39;#FFD700&#39;
+];
 
-    // Dot patterns for numbers 0-9
-    const dotPatterns = [
-      [], [[0, 0]], [[-1, -1], [1, 1]], [[-1, -1], [0, 0], [1, 1]],
-      [[-1, -1], [-1, 1], [1, -1], [1, 1]], [[-1, -1], [-1, 1], [0, 0], [1, -1], [1, 1]],
-      [[-1, -1], [-1, 0], [-1, 1], [1, -1], [1, 0], [1, 1]],
-      [[-1, -1], [-1, 0], [-1, 1], [0, 0], [1, -1], [1, 0], [1, 1]],
-      [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]],
-      [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 0], [0, 1], [1, -1], [1, 0], [1, 1]]
-    ];
+// Dot patterns for numbers 0-9
+const dotPatterns = [
+  [], [[0, 0]], [[-1, -1], [1, 1]], [[-1, -1], [0, 0], [1, 1]],
+  [[-1, -1], [-1, 1], [1, -1], [1, 1]], [[-1, -1], [-1, 1], [0, 0], [1, -1], [1, 1]],
+  [[-1, -1], [-1, 0], [-1, 1], [1, -1], [1, 0], [1, 1]],
+  [[-1, -1], [-1, 0], [-1, 1], [0, 0], [1, -1], [1, 0], [1, 1]],
+  [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]],
+  [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 0], [0, 1], [1, -1], [1, 0], [1, 1]]
+];
 
-    class Domino {
-      constructor(a, b) {
-        this.a = a;
-        this.b = b;
-        this.x = 0;
-        this.y = 0;
-        this.rotation = 0;
-        this.placed = false;
-        this.isSpinner = a === 'S' && b === 'S';
-        this.connectedEnds = { left: null, right: null, top: null, bottom: null };
+class Domino {
+  constructor(a, b) {
+    this.a = a;
+    this.b = b;
+    this.x = 0;
+    this.y = 0;
+    this.rotation = 0;
+    this.placed = false;
+    this.isSpinner = a === &#39;S&#39; &amp;&amp; b === &#39;S&#39;;
+    this.connectedEnds = { left: null, right: null, top: null, bottom: null };
+  }
+
+  draw() {
+    push();
+    translate(this.x, this.y);
+    rotate(radians(this.rotation));
+    fill(colors[this.a === &#39;S&#39; ? 10 : this.a]);
+    rect(-25, -15, 25, 30, 5);
+    fill(colors[this.b === &#39;S&#39; ? 10 : this.b]);
+    rect(0, -15, 25, 30, 5);
+    stroke(0);
+    line(0, -15, 0, 15);
+    fill(0);
+    noStroke();
+    if (this.a === &#39;S&#39;) {
+      beginShape();
+      for (let i = 0; i &lt; 5; i++) {
+        let angle = TWO_PI / 5 * i;
+        vertex(-12.5 + 5 * cos(angle), 5 * sin(angle));
+        angle += TWO_PI / 10;
+        vertex(-12.5 + 2.5 * cos(angle), 2.5 * sin(angle));
       }
-
-      draw() {
-        push();
-        translate(this.x, this.y);
-        rotate(radians(this.rotation));
-        fill(colors[this.a === 'S' ? 10 : this.a]);
-        rect(-25, -15, 25, 30, 5);
-        fill(colors[this.b === 'S' ? 10 : this.b]);
-        rect(0, -15, 25, 30, 5);
-        stroke(0);
-        line(0, -15, 0, 15);
-        fill(0);
-        noStroke();
-        if (this.a === 'S') {
-          beginShape();
-          for (let i = 0; i < 5; i++) {
-            let angle = TWO_PI / 5 * i;
-            vertex(-12.5 + 5 * cos(angle), 5 * sin(angle));
-            angle += TWO_PI / 10;
-            vertex(-12.5 + 2.5 * cos(angle), 2.5 * sin(angle));
-          }
-          endShape(CLOSE);
-        } else {
-          for (let [dx, dy] of dotPatterns[this.a]) {
-            circle(-12.5 + dx * 5, dy * 5, 3);
-          }
-        }
-        if (this.b === 'S') {
-          beginShape();
-          for (let i = 0; i < 5; i++) {
-            let angle = TWO_PI / 5 * i;
-            vertex(12.5 + 5 * cos(angle), 5 * sin(angle));
-            angle += TWO_PI / 10;
-            vertex(12.5 + 2.5 * cos(angle), 2.5 * sin(angle));
-          }
-          endShape(CLOSE);
-        } else {
-          for (let [dx, dy] of dotPatterns[this.b]) {
-            circle(12.5 + dx * 5, dy * 5, 3);
-          }
-        }
-        pop();
-      }
-
-      isClicked(mx, my) {
-        let dx = mx - this.x;
-        let dy = my - this.y;
-        return dx > -25 && dx < 25 && dy > -15 && dy < 15;
+      endShape(CLOSE);
+    } else {
+      for (let [dx, dy] of dotPatterns[this.a]) {
+        circle(-12.5 + dx * 5, dy * 5, 3);
       }
     }
-
-    function setup() {
-      createCanvas(800, 600);
-      noLoop();
-      updateNameInputs(document.getElementById('numPlayers').value); // Initialize inputs on load
+    if (this.b === &#39;S&#39;) {
+      beginShape();
+      for (let i = 0; i &lt; 5; i++) {
+        let angle = TWO_PI / 5 * i;
+        vertex(12.5 + 5 * cos(angle), 5 * sin(angle));
+        angle += TWO_PI / 10;
+        vertex(12.5 + 2.5 * cos(angle), 2.5 * sin(angle));
+      }
+      endShape(CLOSE);
+    } else {
+      for (let [dx, dy] of dotPatterns[this.b]) {
+        circle(12.5 + dx * 5, dy * 5, 3);
+      }
     }
+    pop();
+  }
 
-    function draw() {
-      if (!gameState) return;
-      background(0, 100, 0);
-      for (let domino of gameState.board) {
+  isClicked(mx, my) {
+    let dx = mx - this.x;
+    let dy = my - this.y;
+    return dx &gt; -25 &amp;&amp; dx &lt; 25 &amp;&amp; dy &gt; -15 &amp;&amp; dy &lt; 15;
+  }
+}
+
+function setup() {
+  createCanvas(800, 600);
+  noLoop();
+  // Initialize name inputs on page load
+  document.addEventListener(&#39;DOMContentLoaded&#39;, () =&gt; {
+    const numPlayersInput = document.getElementById(&#39;numPlayers&#39;);
+    if (numPlayersInput) {
+      updateNameInputs(numPlayersInput.value);
+      numPlayersInput.addEventListener(&#39;change&#39;, () =&gt; {
+        updateNameInputs(numPlayersInput.value);
+      });
+    } else {
+      console.error(&#39;numPlayers input not found&#39;);
+      document.getElementById(&#39;status&#39;).textContent = &#39;Error: Page setup failed. Please refresh.&#39;;
+    }
+  });
+}
+
+function draw() {
+  if (!gameState) return;
+  background(0, 100, 0);
+  for (let domino of gameState.board) {
+    new Domino(domino.a, domino.b).draw();
+  }
+  for (let i = 0; i &lt; gameState.players.length; i++) {
+    if (Array.isArray(gameState.players[i])) {
+      for (let domino of gameState.players[i]) {
         new Domino(domino.a, domino.b).draw();
       }
-      for (let i = 0; i < gameState.players.length; i++) {
-        if (Array.isArray(gameState.players[i])) {
-          for (let domino of gameState.players[i]) {
-            new Domino(domino.a, domino.b).draw();
-          }
-        }
-      }
-      if (selectedDomino) {
-        selectedDomino.x = mouseX;
-        selectedDomino.y = mouseY;
-        selectedDomino.draw();
-      }
     }
+  }
+  if (selectedDomino) {
+    selectedDomino.x = mouseX;
+    selectedDomino.y = mouseY;
+    selectedDomino.draw();
+  }
+}
 
-    function mousePressed() {
-      if (!gameState || gameState.currentPlayer !== playerId) return;
-      let hand = gameState.players[playerId];
-      for (let domino of hand) {
-        let d = new Domino(domino.a, domino.b);
-        d.x = domino.x;
-        d.y = domino.y;
-        d.rotation = domino.rotation;
-        if (!domino.placed && d.isClicked(mouseX, mouseY)) {
-          selectedDomino = d;
-          selectedDomino.index = hand.indexOf(domino);
-          break;
-        }
-      }
+function mousePressed() {
+  if (!gameState || gameState.currentPlayer !== playerId) return;
+  let hand = gameState.players[playerId];
+  for (let domino of hand) {
+    let d = new Domino(domino.a, domino.b);
+    d.x = domino.x;
+    d.y = domino.y;
+    d.rotation = domino.rotation;
+    if (!domino.placed &amp;&amp; d.isClicked(mouseX, mouseY)) {
+      selectedDomino = d;
+      selectedDomino.index = hand.indexOf(domino);
+      break;
     }
+  }
+}
 
-    function mouseReleased() {
-      if (selectedDomino && gameState && gameState.currentPlayer === playerId) {
-        ws.send(JSON.stringify({
-          type: 'play',
-          playerId: playerId,
-          dominoIndex: selectedDomino.index,
-          x: mouseX,
-          y: mouseY,
-          rotation: selectedDomino.rotation
-        }));
-        selectedDomino = null;
-      }
+function mouseReleased() {
+  if (selectedDomino &amp;&amp; gameState &amp;&amp; gameState.currentPlayer === playerId) {
+    ws.send(JSON.stringify({
+      type: &#39;play&#39;,
+      playerId: playerId,
+      dominoIndex: selectedDomino.index,
+      x: mouseX,
+      y: mouseY,
+      rotation: selectedDomino.rotation
+    }));
+    selectedDomino = null;
+  }
+}
+
+function keyPressed() {
+  if (selectedDomino &amp;&amp; key === &#39;r&#39;) {
+    selectedDomino.rotation = (selectedDomino.rotation + 90) % 360;
+  }
+}
+
+function connectAndStart() {
+  const numPlayersInput = document.getElementById(&#39;numPlayers&#39;);
+  if (!numPlayersInput) {
+    document.getElementById(&#39;status&#39;).textContent = &#39;Error: Number of players input not found. Please refresh.&#39;;
+    return;
+  }
+  let numPlayers = parseInt(numPlayersInput.value);
+  if (isNaN(numPlayers) || numPlayers &lt; 2 || numPlayers &gt; 8) {
+    document.getElementById(&#39;status&#39;).textContent = &#39;Please select 2 to 8 players.&#39;;
+    return;
+  }
+
+  // Ensure name inputs are created and updated
+  updateNameInputs(numPlayers);
+  let names = [];
+  for (let i = 0; i &lt; numPlayers; i++) {
+    const nameInput = document.getElementById(`name${i}`);
+    if (!nameInput) {
+      document.getElementById(&#39;status&#39;).textContent = `Error: Name input for Player ${i + 1} not found. Please try again.`;
+      return;
     }
-
-    function keyPressed() {
-      if (selectedDomino && key === 'r') {
-        selectedDomino.rotation = (selectedDomino.rotation + 90) % 360;
-      }
+    // Force input update
+    nameInput.dispatchEvent(new Event(&#39;input&#39;));
+    let name = nameInput.value.trim();
+    console.log(`Player ${i + 1} name: &quot;${name}&quot;`); // Debug
+    if (!name) {
+      document.getElementById(&#39;status&#39;).textContent = `Please enter a name for Player ${i + 1}.`;
+      return;
     }
+    names.push(name);
+  }
 
-    function connectAndStart() {
-      let numPlayersInput = document.getElementById('numPlayers');
-      if (!numPlayersInput) {
-        alert('Error: Number of players input not found.');
-        return;
+  // Connect to WebSocket
+  ws = new WebSocket(&#39;wss://spinners-server.onrender.com&#39;); // Update with your Render URL
+  ws.onopen = () =&gt; {
+    console.log(&#39;WebSocket connected&#39;);
+    ws.send(JSON.stringify({ type: &#39;join&#39;, numPlayers, names }));
+  };
+  ws.onmessage = (event) =&gt; {
+    const msg = JSON.parse(event.data);
+    if (msg.type === &#39;playerId&#39;) {
+      playerId = msg.playerId;
+      document.getElementById(&#39;status&#39;).textContent = `Connected as Player ${playerId + 1}. Waiting for others...`;
+    } else if (msg.type === &#39;state&#39;) {
+      gameState = msg.state;
+      document.getElementById(&#39;playerSetup&#39;).style.display = &#39;none&#39;;
+      document.getElementById(&#39;controls&#39;).style.display = &#39;block&#39;;
+      let statusText = `${gameState.playerNames[gameState.currentPlayer]}&#39;s Turn (Round ${10 - gameState.currentRound})`;
+      if (gameState.doubleInPlay) {
+        let matchNum = gameState.doubleInPlay.a === &#39;S&#39; ? gameState.currentRound : gameState.doubleInPlay.a;
+        statusText += ` (Play on double ${matchNum} or spinner, ${3 - gameState.doubleCounter} left)`;
       }
-      let numPlayers = parseInt(numPlayersInput.value);
-      if (numPlayers < 2 || numPlayers > 8) {
-        alert('Please select 2 to 8 players.');
-        return;
+      document.getElementById(&#39;status&#39;).textContent = statusText;
+      loop();
+    } else if (msg.type === &#39;gameOver&#39;) {
+      let scoreText = `${msg.winner} Wins the Round!\nCumulative Scores:\n`;
+      for (let i = 0; i &lt; gameState.playerNames.length; i++) {
+        scoreText += `${gameState.playerNames[i]}: ${msg.scores[i]} points\n`;
       }
-      updateNameInputs(numPlayers); // Ensure name inputs are created
-      let names = [];
-      for (let i = 0; i < numPlayers; i++) {
-        let nameInput = document.getElementById(`name${i}`);
-        if (!nameInput) {
-          alert(`Error: Name input for Player ${i + 1} not found.`);
-          return;
-        }
-        let name = nameInput.value.trim();
-        if (!name) {
-          alert(`Please enter a name for Player ${i + 1}`);
-          return;
-        }
-        names.push(name);
-      }
-      ws = new WebSocket('wss://spinners-server.onrender.com'); // Update to Render URL after deployment
-      ws.onopen = () => {
-        ws.send(JSON.stringify({ type: 'join', numPlayers, names }));
-      };
-      ws.onmessage = (event) => {
-        const msg = JSON.parse(event.data);
-        if (msg.type === 'playerId') {
-          playerId = msg.playerId;
-        } else if (msg.type === 'state') {
-          gameState = msg.state;
-          document.getElementById('playerSetup').style.display = 'none';
-          document.getElementById('controls').style.display = 'block';
-          let statusText = `${gameState.playerNames[gameState.currentPlayer]}'s Turn (Round ${10 - gameState.currentRound})`;
-          if (gameState.doubleInPlay) {
-            let matchNum = gameState.doubleInPlay.a === 'S' ? gameState.currentRound : gameState.doubleInPlay.a;
-            statusText += ` (Play on double ${matchNum} or spinner, ${3 - gameState.doubleCounter} left)`;
-          }
-          document.getElementById('status').textContent = statusText;
-          loop();
-        } else if (msg.type === 'gameOver') {
-          let scoreText = `${msg.winner} Wins the Round!\nCumulative Scores:\n`;
-          for (let i = 0; i < gameState.playerNames.length; i++) {
-            scoreText += `${gameState.playerNames[i]}: ${msg.scores[i]} points\n`;
-          }
-          scoreText += `Game Winner: ${msg.gameWinner} (Lowest Score: ${msg.scores[msg.winnerIndex]})`;
-          document.getElementById('status').textContent = scoreText;
-          noLoop();
-        }
-      };
-      ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        document.getElementById('status').textContent = 'Error connecting to server. Please try again.';
-      };
+      scoreText += `Game Winner: ${msg.gameWinner} (Lowest Score: ${msg.scores[msg.winnerIndex]})`;
+      document.getElementById(&#39;status&#39;).textContent = scoreText;
+      noLoop();
     }
+  };
+  ws.onerror = (error) =&gt; {
+    console.error(&#39;WebSocket error:&#39;, error);
+    document.getElementById(&#39;status&#39;).textContent = &#39;Error connecting to server. Please try again.&#39;;
+  };
+  ws.onclose = () =&gt; {
+    document.getElementById(&#39;status&#39;).textContent = &#39;Disconnected from server. Please refresh and try again.&#39;;
+  };
+}
 
-    function sendDraw() {
-      if (gameState && gameState.currentPlayer === playerId) {
-        ws.send(JSON.stringify({ type: 'draw', playerId }));
-      }
-    }
+function sendDraw() {
+  if (gameState &amp;&amp; gameState.currentPlayer === playerId) {
+    ws.send(JSON.stringify({ type: &#39;draw&#39;, playerId }));
+  }
+}
 
-    function updateNameInputs(numPlayers) {
-      let nameInputs = document.getElementById('nameInputs');
-      if (!nameInputs) {
-        console.error('nameInputs element not found');
-        return;
-      }
-      nameInputs.innerHTML = '';
-      for (let i = 0; i < numPlayers; i++) {
-        let input = document.createElement('input');
-        input.type = 'text';
-        input.id = `name${i}`;
-        input.placeholder = `Player ${i + 1} Name`;
-        nameInputs.appendChild(input);
-      }
-    }
-
-    // Initialize name inputs on page load
-    document.addEventListener('DOMContentLoaded', () => {
-      updateNameInputs(document.getElementById('numPlayers').value);
-      document.getElementById('numPlayers').addEventListener('change', () => {
-        updateNameInputs(document.getElementById('numPlayers').value);
-      });
+function updateNameInputs(numPlayers) {
+  const nameInputs = document.getElementById(&#39;nameInputs&#39;);
+  if (!nameInputs) {
+    console.error(&#39;nameInputs element not found&#39;);
+    document.getElementById(&#39;status&#39;).textContent = &#39;Error: Page setup failed. Please refresh.&#39;;
+    return;
+  }
+  nameInputs.innerHTML = &#39;&#39;;
+  for (let i = 0; i &lt; numPlayers; i++) {
+    let input = document.createElement(&#39;input&#39;);
+    input.type = &#39;text&#39;;
+    input.id = `name${i}`;
+    input.placeholder = `Player ${i + 1} Name`;
+    input.addEventListener(&#39;input&#39;, () =&gt; {
+      console.log(`Input updated for Player ${i + 1}: ${input.value}`);
     });
-  </script>
-</body>
-</html>
+    nameInputs.appendChild(input);
+  }
+}
+</code></pre>
+<p>  
+(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'96344ef3fc95b996',t:'MTc1MzIwMTY3Ny4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();
