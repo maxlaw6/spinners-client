@@ -258,7 +258,7 @@
         }
         names.push(name);
       }
-      ws = new WebSocket('ws://localhost:8080'); // Update to Render URL after deployment
+      ws = new WebSocket('wss://spinners-server.onrender.com'); // Update to Render URL after deployment
       ws.onopen = () => {
         ws.send(JSON.stringify({ type: 'join', numPlayers, names }));
       };
